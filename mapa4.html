@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>XpressDrone</title>
+    <meta charset="utf-8" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="This tutorial demonstrates finding the shortest path for a drone between two points." />
+    <meta name="keywords" content="Microsoft maps, map, gis, API, SDK, services, module, tutorials, drone, shortest path, route, navigation" />
+    <meta name="author" content="Microsoft Azure Maps" />
+    <meta name="version" content="1.0" />
+
+    <!-- Agregar referencias al control de mapas en azure, JavaScript y archivos CSS -->
+    <link href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" rel="stylesheet" />
+    <link href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/main.css" />
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+
+    <script>
+        var map, datasource, distance,features;
+
+        function GetMap() {
+
+          
+            // Instanciar un objeto tipo mapa
+            var map = new atlas.Map('myMap', {
+                view: 'Auto',
+
+                //Agregar autenticación para la conexión a cuenta azure.
+                authOptions: {
+                    // Autenticación de Directorio Azure.
+                    authType: 'anonymous',
+                    clientId: 'e6b6ab59-eb5d-4d25-aa57-581135b927f0', //Cliente Azure Maps para acceso.
+
+                    // Alternativamente, usar una key de Azure Maps. Se puede conseguir an Azure Maps key at https://azure.com/maps. NOTA: La primary key es la que se usa como KEY.
+                    authType: 'subscriptionKey',
+                    subscriptionKey: 'sLhPS78CT1c6Tm2P_GnN3hnB47Xojp76wqLWlrR1ab8'
+                }
+            });
+
+            // Esperar mientras el mapa se carga.
+            map.events.add('ready', function () {
+                
+                // Crear un datasource y agregarlo al mapa.
+                datasource = new atlas.source.DataSource();
+                map.sources.add(datasource);
+
+
+                //  Agregar un layer para renderizar los puntos
+                map.layers.add(new atlas.layer.SymbolLayer(datasource, null, {
+                    iconOptions: {
+                        image: ['get', 'icon'],
+                        allowOverlap: true
+                    },
+                    textOptions: {
+                        textField: ['get', 'title'],
+                        offset: [0, 1.2]
+                    },
+                    filter: ['any', ['==', ['geometry-type'], 'Point'], ['==', ['geometry-type'], 'MultiPoint']] // Solo renderizar puntos o multipuntos.
+                }));
+
+                // Remplazar estas cordenadas con el punto actual del dron y el punto final del pedido.
+                var startCoordinates = [-54.6424134, -25.5097526]; // Remplazar con la coordenada inicial.
+                var endCoordinates = [-54.620311, -25.47838];
+                 // Remplazar con la coordenada final.
+
+                // Crear el objeto GeoJSON objects que representa el punto  start y end de la ruta.
+                var startPoint = new atlas.data.Feature(new atlas.data.Point(startCoordinates), {
+                    title: "Start",
+                    icon: "pin-round-blue"
+                });
+
+                var endPoint = new atlas.data.Feature(new atlas.data.Point(endCoordinates), {
+                    title: "End",
+                    icon: "pin-red"
+                });
+
+            
+
+                // Agregar el dato al datasource
+                datasource.add([startPoint, endPoint]);
+
+                // Setear el tipo de vista de mapa y marcar el punto start  y el end.
+                map.setCamera({
+                    bounds: atlas.data.BoundingBox.fromData([startPoint, endPoint]),
+                    padding: 30
+                });
+
+                // Calcular y mostrar el camino mas corto entre el punto inicial y final.
+                calculateShortestPath(startPoint.geometry.coordinates, endPoint.geometry.coordinates);
+            });
+        }
+
+        
+    
+        function calculateShortestPath(startCoordinates, endCoordinates) {
+           
+            
+            // Calcula la distancia entre los dos puntos usando la función getDistanceTo de Azure Maps.
+            var distance = atlas.math.getDistanceTo(startCoordinates, endCoordinates, 'kilometers');
+            console.log(typeof distance)
+            // Muestra la distancia en el elemento <h1> correspondiente.
+            var distanceDisplay = document.getElementById('distanceDisplay');
+            distanceDisplay.textContent = 'Distancia: ' + distance.toFixed(2) + ' kilómetros';
+            var time = distance*60/100; //100 es la velocidad del dron
+            var distanceDisplay = document.getElementById('timeDisplay');
+            timeDisplay.textContent = 'Tu pedido llegará en aproximadamente ' + time.toFixed(2) + ' minutos';
+            // Calcula y agrega los puntos intermedios a la fuente de datos.
+            var pathCoordinates = calculateIntermediatePoints(startCoordinates, endCoordinates, distance);
+            
+            // Agrega los puntos intermedios a la fuente de datos como puntos en lugar de una línea.
+            
+                
+            
+            var pathPoints = pathCoordinates.map(function (coordinate) {
+                return new atlas.data.Feature(new atlas.data.Point(coordinate), {
+                    title: "ParadaDron",
+                    icon: "marker-yellow"
+                });
+            });
+            
+            datasource.add(pathPoints);
+           
+
+            
+        }
+
+        function calculateIntermediatePoints(startCoordinates, endCoordinates,distance) {
+            
+            // Implementa tu lógica para calcular los puntos intermedios aquí.
+            // Esto podría implicar calcular una serie de puntos a lo largo de la ruta más corta.
+            // Aquí hay un ejemplo simple que divide la distancia en 10 pasos iguales:
+            var numberOfSteps = distance/0.1;
+
+            var intermediatePoints = [];
+
+            for (var i = 1; i < numberOfSteps; i++) {
+                var ratio = i / numberOfSteps;
+                var intermediatePoint = [
+                    startCoordinates[0] + (endCoordinates[0] - startCoordinates[0]) * ratio,
+                    startCoordinates[1] + (endCoordinates[1] - startCoordinates[1]) * ratio
+                ];
+                intermediatePoints.push(intermediatePoint);
+            }
+
+            return intermediatePoints;
+        }
+    </script>
+   
+</head>
+
+<body onload="GetMap()">
+    <header>
+        <div><a class="imagen"><img src="/static/drone.png" alt="Dron Logo" /></a></div>
+        <nav>
+          <ul>
+            <li><a href="#" class="active">home</a></li>
+            <li><a href="#">contacto</a></li>
+          </ul>
+        </nav>
+    </header>
+    <h1>Rastree su Pedido Aqui</h1>
+    <h2>Aquí podrás visualizar el origen, la ruta en tiempo real y el destino final de su pedido</h2>
+    <h3 id="timeDisplay" style="color: black;">Tiempo Aproximado: <span style="color: blue;">Calculando...</span></h3>
+    <h4 id="distanceDisplay" style="color: black;">Distancia: <span style="color: blue;">Calculando...</span></h4>
+    <div id="myMap"></div>
+</body>
+
+</html>

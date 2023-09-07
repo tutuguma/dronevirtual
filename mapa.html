@@ -1,0 +1,66 @@
+<html>
+<head>
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css" />
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+    <script type='text/javascript'>
+        function init() {
+            fetch("https://dronunastorage.blob.core.windows.net/gps-data/?restype=container&comp=list")
+                .then(response => response.text())
+                .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+                .then(xml => {
+                    let blobList = Array.from(xml.querySelectorAll("Url"));
+                    blobList.forEach(async blobUrl => {
+                        loadJSON(blobUrl.innerHTML)
+                    });
+                })
+                .then(response => {
+                    map = new atlas.Map('myMap', {
+                        center: [-54.6424134, -25.516123],
+                        zoom: 12,
+                        authOptions: {
+                            authType: "subscriptionKey",
+                            subscriptionKey: "sLhPS78CT1c6Tm2P_GnN3hnB47Xojp76wqLWlrR1ab8",
+                        }
+                    });
+                    map.events.add('ready', function () {
+                        var source = new atlas.source.DataSource();
+                        map.sources.add(source);
+                        // Cambiar a PolylineLayer para mostrar una ruta.
+                        map.layers.add(new atlas.layer.PolylineLayer(source, null, {
+                            strokeColor: 'blue',
+                            strokeWidth: 4
+                        }));
+                    })
+                })
+        }
+
+        var map;
+
+        function loadJSON(file) {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        var gps = JSON.parse(xhr.responseText);
+                        var coordinates = [parseFloat(gps.gps.lon), parseFloat(gps.gps.lat)];
+                        var source = map.sources.get(0);
+                        source.shapes.add(new atlas.Shape(new atlas.data.LineString(coordinates)));
+                    }
+                }
+            };
+            xhr.open("GET", file, true);
+            xhr.send();
+        }
+        
+    </script>
+    <style>
+        #myMap {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body onload="init()">
+    <div id="myMap"></div>
+</body>
+</html>
